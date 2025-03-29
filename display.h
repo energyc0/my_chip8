@@ -7,6 +7,8 @@
 #define WIDTH_TRUNC(x) ((x) & (CHIP8_DISPLAY_WIDTH-1))
 #define HEIGHT_TRUNC(y) ((y) & (CHIP8_DISPLAY_HEIGHT - 1))
 
+void init_display(); //initialize ncurses
+void cleanup_display(); //cleanup ncurses
 
 void clear_display(struct chip_8_internals* chip); //CLS instruction
 

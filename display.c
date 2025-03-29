@@ -26,3 +26,13 @@ byte_t draw_sprite(struct chip_8_internals* chip, byte_t x, byte_t y, byte_t n){
     refresh();
     return ret;
 }
+
+void init_display(){
+    initscr();
+    noecho();
+    cbreak();
+}
+
+void cleanup_display(){
+    //endwin();
+}

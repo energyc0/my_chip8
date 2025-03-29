@@ -18,16 +18,23 @@ static byte_t y;    //the upper 4 bits of low byte
 static byte_t kk;   //the lowest 8 bits
 static byte_t n;   //the lowest 4 bits
 
-static void undefined_inst();
+static void undefined_inst();           //print error and exit
+static void init_font(byte_t* memory);  //initialize chip-8 memory 
+static byte_t hex_char_addr(byte_t Vx); //return address offset to the hexadecimal character in chip-8 memory 
+static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx); //binary-coded decimal conversion
 
 void load_program(struct chip_8_internals* chip, char* program){
     FILE* fp = fopen(program, "r");
     if(fp == NULL)
         print_err("Failed to open the file %s: %s\n", program, strerror(errno));    
+    
+    //initialize chip-8
     memset(chip, 0, sizeof(struct chip_8_internals));
-        
     chip->PC = 0x200;
     chip->SP = (byte_t)-1;
+    init_font(chip->memory);
+
+
     fseek(fp, 0, SEEK_END);
     size_t program_sz = ftell(fp);
     rewind(fp);
@@ -36,9 +43,8 @@ void load_program(struct chip_8_internals* chip, char* program){
     fclose(fp);
 
     srand(time(NULL));
-    initscr();
-    noecho();
-    cbreak();
+    init_display();
+    atexit(cleanup_display);
 }
 
 int fetch_inst(struct chip_8_internals* chip){
@@ -61,21 +67,18 @@ void decode_inst(struct chip_8_internals* chip){
 }
 
 void execute_inst(struct chip_8_internals* chip){
-   // fprintf(stderr,"%X%X%X%X\n",
-    //    ((inst & 0xF000) >> 12), ((inst & 0x0F00) >> 8), ((inst & 0x00F0) >> 4), (inst & 0x000F));
     word_t temp_word;
     switch(((inst & 0xF000) >> 12)){
         case 0x0:{
             if(inst == 0x00E0){
                 clear_display(chip);
-                break;
+
             }else if(inst == 0x00EE){
                 if(chip->SP == (byte_t)-1)
                     exit(EXIT_SUCCESS);
                 chip->PC = chip->stack[chip->SP--];
-                break;
             }
-            undefined_inst(); break;
+            break;
         }
         case 0x1: chip->PC = nnn; break;
         case 0x2: {
@@ -105,7 +108,7 @@ void execute_inst(struct chip_8_internals* chip){
         case 0x7: chip->V[x] += kk; break;
         case 0x8: {
             switch (inst & 0x000F) {
-                case 0x0: chip->V[x] |= chip->V[y]; break;
+                case 0x0: chip->V[x] = chip->V[y]; break;
                 case 0x1: chip->V[x] |= chip->V[y]; break;
                 case 0x2: chip->V[x] &= chip->V[y]; break;
                 case 0x3: chip->V[x] ^= chip->V[y]; break;
@@ -120,7 +123,7 @@ void execute_inst(struct chip_8_internals* chip){
                     chip->V[x] -= chip->V[y];
                     break;
                 }
-                case 0x6:{
+                case 0x6:{ //AMBIGUOUS
                     chip->V[0xF] = chip->V[x] & 0x01;
                     chip->V[x] /= 2;
                     break;
@@ -130,7 +133,7 @@ void execute_inst(struct chip_8_internals* chip){
                     chip->V[x] = chip->V[y] - chip->V[x];
                     break;
                 }
-                case 0xE:{
+                case 0xE:{ //AMBIGUOUS
                     chip->V[0xF] = chip->V[x] & 0x80;
                     chip->V[x] *= 2;
                     break;
@@ -147,7 +150,7 @@ void execute_inst(struct chip_8_internals* chip){
             break;
         }
         case 0xA: chip->I = nnn; break;
-        case 0xB: chip->PC = nnn + chip->V[0x0]; break;
+        case 0xB: chip->PC = nnn + chip->V[0x0]; break; //AMBIGUOUS
         case 0xC: chip->V[x] = (rand() % 256) & kk; break;
         case 0xD: chip->V[0xF] = draw_sprite(chip, chip->V[x], chip->V[y], n); break;
         case 0xE: undefined_inst(); break; //TODO
@@ -156,12 +159,22 @@ void execute_inst(struct chip_8_internals* chip){
                 case 0x07: chip->V[x] = chip->DT; break;
                 case 0x0A: undefined_inst(); break; //TODO
                 case 0x15: chip->DT = chip->V[x]; break;
-                case 0x18: undefined_inst(); break; //TODO
-                case 0x1E: undefined_inst(); break; //TODO
-                case 0x29: undefined_inst(); break; //TODO
-                case 0x33: undefined_inst(); break; //TODO
-                case 0x55: undefined_inst(); break; //TODO
-                case 0x65: undefined_inst(); break; //TODO
+                case 0x18: chip->ST = chip->V[x]; break;
+                case 0x1E: chip->I += chip->V[x]; break;
+                case 0x29: chip->I = hex_char_addr(chip->V[x]); break;
+                case 0x33: bin_cod_dec_conv(chip, chip->V[x]); break;
+                case 0x55:{
+                    if(chip->I + x >= CHIP8_RAM_SIZE)
+                        print_err("access CHIP-8 memory out of range\n");
+                    memcpy(chip->memory + chip->I, chip->V, x+1);
+                    break;
+                }
+                case 0x65:{ //AMBIGUOUS
+                    if(chip->I + x >= CHIP8_RAM_SIZE)
+                        print_err("access CHIP-8 memory out of range\n");
+                    memcpy(chip->V, chip->memory, x+1);
+                    break;
+                }
                 default: undefined_inst();
             }
         }
@@ -172,4 +185,40 @@ void execute_inst(struct chip_8_internals* chip){
 static void undefined_inst(){
     print_err("Undefined instruction: %X%X%X%X\n",
          ((inst & 0xF000) >> 12), ((inst & 0x0F00) >> 8), ((inst & 0x00F0) >> 4), (inst & 0x000F));
+}
+
+static void init_font(byte_t* memory){
+    const byte_t font_digits[] = {
+        0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+        0x20, 0x60, 0x20, 0x20, 0x70, // 1
+        0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+        0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+        0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+        0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+        0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+        0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+        0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+        0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+        0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+        0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+        0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+        0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+        0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+        0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+    };
+    memcpy(memory, font_digits, sizeof(font_digits));
+}
+
+static byte_t hex_char_addr(byte_t Vx){
+    return (Vx & 0x0F) * 5;
+}
+
+static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx){
+    if(chip->I + 2 >= CHIP8_RAM_SIZE)
+        print_err("access CHIP-8 memory out of range\n");
+    chip->memory[chip->I + 2] = Vx % 10;
+    Vx /= 10;
+    chip->memory[chip->I + 1] = Vx % 10;
+    Vx /= 10;
+    chip->memory[chip->I] = Vx;
 }
