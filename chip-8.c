@@ -61,18 +61,21 @@ void decode_inst(struct chip_8_internals* chip){
 }
 
 void execute_inst(struct chip_8_internals* chip){
+   // fprintf(stderr,"%X%X%X%X\n",
+    //    ((inst & 0xF000) >> 12), ((inst & 0x0F00) >> 8), ((inst & 0x00F0) >> 4), (inst & 0x000F));
     word_t temp_word;
     switch(((inst & 0xF000) >> 12)){
         case 0x0:{
             if(inst == 0x00E0){
                 clear_display(chip);
-            }
-            else if(inst == 0x00EE){
+                break;
+            }else if(inst == 0x00EE){
                 if(chip->SP == (byte_t)-1)
                     exit(EXIT_SUCCESS);
                 chip->PC = chip->stack[chip->SP--];
+                break;
             }
-            break;
+            undefined_inst(); break;
         }
         case 0x1: chip->PC = nnn; break;
         case 0x2: {
@@ -146,19 +149,19 @@ void execute_inst(struct chip_8_internals* chip){
         case 0xA: chip->I = nnn; break;
         case 0xB: chip->PC = nnn + chip->V[0x0]; break;
         case 0xC: chip->V[x] = (rand() % 256) & kk; break;
-        case 0xD: chip->V[0xF] = draw_sprite(chip, x, y, n); break;
-        case 0xE: break;
+        case 0xD: chip->V[0xF] = draw_sprite(chip, chip->V[x], chip->V[y], n); break;
+        case 0xE: undefined_inst(); break; //TODO
         case 0xF:{
             switch (inst & 0x00FF) {
                 case 0x07: chip->V[x] = chip->DT; break;
-                case 0x0A: break;
+                case 0x0A: undefined_inst(); break; //TODO
                 case 0x15: chip->DT = chip->V[x]; break;
-                case 0x18: break;
-                case 0x1E: break;
-                case 0x29: break;
-                case 0x33: break;
-                case 0x55: break;
-                case 0x65: break;
+                case 0x18: undefined_inst(); break; //TODO
+                case 0x1E: undefined_inst(); break; //TODO
+                case 0x29: undefined_inst(); break; //TODO
+                case 0x33: undefined_inst(); break; //TODO
+                case 0x55: undefined_inst(); break; //TODO
+                case 0x65: undefined_inst(); break; //TODO
                 default: undefined_inst();
             }
         }
