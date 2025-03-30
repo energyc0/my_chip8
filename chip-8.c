@@ -1,7 +1,7 @@
 #include "chip-8.h"
 #include "display.h"
 #include "utils.h"
-#include <curses.h>
+#include "input.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -44,7 +44,12 @@ void load_program(struct chip_8_internals* chip, char* program){
 
     srand(time(NULL));
     init_display();
-    atexit(cleanup_display);
+    init_input();
+    atexit(cleanup);
+}
+
+void cleanup(){
+    cleanup_display();
 }
 
 int fetch_inst(struct chip_8_internals* chip){
@@ -153,11 +158,21 @@ void execute_inst(struct chip_8_internals* chip){
         case 0xB: chip->PC = nnn + chip->V[0x0]; break; //AMBIGUOUS
         case 0xC: chip->V[x] = (rand() % 256) & kk; break;
         case 0xD: chip->V[0xF] = draw_sprite(chip, chip->V[x], chip->V[y], n); break;
-        case 0xE: undefined_inst(); break; //TODO
+        case 0xE:{
+            if((inst & 0x00FF) ==  0x009E){
+                if(check_key(chip->V[x]))
+                    chip->PC += 2;
+            }else if((inst & 0x00FF) == 0x00A1){
+                if(!check_key(chip->V[x]))
+                    chip->PC += 2;
+            }else
+                undefined_inst();
+            break;
+        }
         case 0xF:{
             switch (inst & 0x00FF) {
                 case 0x07: chip->V[x] = chip->DT; break;
-                case 0x0A: undefined_inst(); break; //TODO
+                case 0x0A: chip->V[x] = get_key(); break;
                 case 0x15: chip->DT = chip->V[x]; break;
                 case 0x18: chip->ST = chip->V[x]; break;
                 case 0x1E: chip->I += chip->V[x]; break;

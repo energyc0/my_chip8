@@ -26,9 +26,10 @@ struct chip_8_internals{
     byte_t display[CHIP8_DISPLAY_WIDTH][CHIP8_DISPLAY_HEIGHT];
 };
 
-void load_program(struct chip_8_internals* chip, char* program);
+void load_program(struct chip_8_internals* chip, char* program); //call on init
 int fetch_inst(struct chip_8_internals* chip);
 void decode_inst(struct chip_8_internals* chip);
 void execute_inst(struct chip_8_internals* chip);
+void cleanup();//call on exit
 
 #endif

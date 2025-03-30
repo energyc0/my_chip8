@@ -34,5 +34,5 @@ void init_display(){
 }
 
 void cleanup_display(){
-    //endwin();
+    endwin();
 }
