@@ -3,7 +3,7 @@
 
 int main(int argc, char** argv){
     if(argc != 2)
-        print_err("CHIP-8 rom filename expected\n");
+        eprintf("CHIP-8 rom filename expected\n");
 
     struct chip_8_internals chip8;
     load_program(&chip8, argv[1]);

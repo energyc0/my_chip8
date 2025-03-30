@@ -18,15 +18,19 @@ static byte_t y;    //the upper 4 bits of low byte
 static byte_t kk;   //the lowest 8 bits
 static byte_t n;   //the lowest 4 bits
 
-static void undefined_inst();           //print error and exit
 static void init_font(byte_t* memory);  //initialize chip-8 memory 
 static byte_t hex_char_addr(byte_t Vx); //return address offset to the hexadecimal character in chip-8 memory 
 static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx); //binary-coded decimal conversion
 
+//print error and exit
+#define undefined_inst()     eprintf("Undefined instruction: %X%X%X%X\n",   \
+    ((inst & 0xF000) >> 12), ((inst & 0x0F00) >> 8), ((inst & 0x00F0) >> 4), (inst & 0x000F)) \
+
+
 void load_program(struct chip_8_internals* chip, char* program){
     FILE* fp = fopen(program, "r");
     if(fp == NULL)
-        print_err("Failed to open the file %s: %s\n", program, strerror(errno));    
+        eprintf("Failed to open the file %s: %s\n", program, strerror(errno));    
     
     //initialize chip-8
     memset(chip, 0, sizeof(struct chip_8_internals));
@@ -43,7 +47,8 @@ void load_program(struct chip_8_internals* chip, char* program){
     fclose(fp);
 
     srand(time(NULL));
-    init_display();
+    init_display(chip);
+    check_correct_display_size();
     init_input();
     atexit(cleanup);
 }
@@ -76,7 +81,7 @@ void execute_inst(struct chip_8_internals* chip){
     switch(((inst & 0xF000) >> 12)){
         case 0x0:{
             if(inst == 0x00E0){
-                clear_display(chip);
+                clear_display();
 
             }else if(inst == 0x00EE){
                 if(chip->SP == (byte_t)-1)
@@ -88,7 +93,7 @@ void execute_inst(struct chip_8_internals* chip){
         case 0x1: chip->PC = nnn; break;
         case 0x2: {
             if(++chip->SP >= CHIP8_STACK_SIZE)
-                print_err("CHIP8 stackoverflow\n");
+                eprintf("CHIP8 stackoverflow\n");
             chip->stack[chip->SP--] = chip->PC;
             chip->PC = nnn; break;
         }
@@ -157,7 +162,7 @@ void execute_inst(struct chip_8_internals* chip){
         case 0xA: chip->I = nnn; break;
         case 0xB: chip->PC = nnn + chip->V[0x0]; break; //AMBIGUOUS
         case 0xC: chip->V[x] = (rand() % 256) & kk; break;
-        case 0xD: chip->V[0xF] = draw_sprite(chip, chip->V[x], chip->V[y], n); break;
+        case 0xD: chip->V[0xF] = draw_sprite(chip->V[x], chip->V[y], n); break;
         case 0xE:{
             if((inst & 0x00FF) ==  0x009E){
                 if(check_key(chip->V[x]))
@@ -180,13 +185,13 @@ void execute_inst(struct chip_8_internals* chip){
                 case 0x33: bin_cod_dec_conv(chip, chip->V[x]); break;
                 case 0x55:{
                     if(chip->I + x >= CHIP8_RAM_SIZE)
-                        print_err("access CHIP-8 memory out of range\n");
+                        eprintf("access CHIP-8 memory out of range\n");
                     memcpy(chip->memory + chip->I, chip->V, x+1);
                     break;
                 }
                 case 0x65:{ //AMBIGUOUS
                     if(chip->I + x >= CHIP8_RAM_SIZE)
-                        print_err("access CHIP-8 memory out of range\n");
+                        eprintf("access CHIP-8 memory out of range\n");
                     memcpy(chip->V, chip->memory, x+1);
                     break;
                 }
@@ -195,11 +200,6 @@ void execute_inst(struct chip_8_internals* chip){
         }
         default: undefined_inst();
     }
-}
-
-static void undefined_inst(){
-    print_err("Undefined instruction: %X%X%X%X\n",
-         ((inst & 0xF000) >> 12), ((inst & 0x0F00) >> 8), ((inst & 0x00F0) >> 4), (inst & 0x000F));
 }
 
 static void init_font(byte_t* memory){
@@ -230,7 +230,7 @@ static byte_t hex_char_addr(byte_t Vx){
 
 static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx){
     if(chip->I + 2 >= CHIP8_RAM_SIZE)
-        print_err("access CHIP-8 memory out of range\n");
+        eprintf("access CHIP-8 memory out of range\n");
     chip->memory[chip->I + 2] = Vx % 10;
     Vx /= 10;
     chip->memory[chip->I + 1] = Vx % 10;

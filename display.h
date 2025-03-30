@@ -7,10 +7,16 @@
 #define WIDTH_TRUNC(x) ((x) & (CHIP8_DISPLAY_WIDTH-1))
 #define HEIGHT_TRUNC(y) ((y) & (CHIP8_DISPLAY_HEIGHT - 1))
 
-void init_display(); //initialize ncurses
+#define PIXEL '#'
+
+void init_display(struct chip_8_internals* chip); //initialize ncurses
 void cleanup_display(); //cleanup ncurses
 
-void clear_display(struct chip_8_internals* chip); //CLS instruction
+//checks if terminal size is at least 64x32 and asks user to resize
+//return 1 on redraw
+int check_correct_display_size();
 
-byte_t draw_sprite(struct chip_8_internals* chip, byte_t Vx, byte_t Vy, byte_t n); //DRW instruction, return VF value
+void clear_display(); //CLS instruction
+
+byte_t draw_sprite(byte_t Vx, byte_t Vy, byte_t n); //DRW instruction, return VF value
 #endif 

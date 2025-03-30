@@ -23,7 +23,7 @@ struct chip_8_internals{
     byte_t V[CHIP8_REGISTERS_COUNT];
     
     word_t stack[CHIP8_STACK_SIZE];
-    byte_t display[CHIP8_DISPLAY_WIDTH][CHIP8_DISPLAY_HEIGHT];
+    byte_t display[CHIP8_DISPLAY_HEIGHT][CHIP8_DISPLAY_WIDTH];
 };
 
 void load_program(struct chip_8_internals* chip, char* program); //call on init
