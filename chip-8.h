@@ -9,6 +9,9 @@
 #define CHIP8_DISPLAY_WIDTH 64
 #define CHIP8_DISPLAY_HEIGHT 32
 
+#define CHIP8_INSTRUCTIONS_PER_SEC 100
+#define CHIP8_TIMER_DECREASE_PER_SEC 60
+
 typedef uint8_t byte_t;
 typedef uint16_t word_t;
 

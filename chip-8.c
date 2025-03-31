@@ -2,11 +2,16 @@
 #include "display.h"
 #include "utils.h"
 #include "input.h"
+#include <bits/pthreadtypes.h>
+#include <ncurses.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 
 //current instruction
 static word_t inst; 
@@ -26,6 +31,18 @@ static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx); //binary
 #define undefined_inst()     eprintf("Undefined instruction: %X%X%X%X\n",   \
     ((inst & 0xF000) >> 12), ((inst & 0x0F00) >> 8), ((inst & 0x00F0) >> 4), (inst & 0x000F)) \
 
+//for timer thread
+struct chip8_timer_setup{
+    byte_t* DT;   //delay timer
+    byte_t* ST;   //sound timer
+    pthread_barrier_t* setup_barrier;
+};
+//must call on init
+static void init_timers(struct chip_8_internals* chip);
+//thread decreasing the delay and sound timers
+static void timer_thread(const struct chip8_timer_setup* t);
+//mutex for timers access
+static pthread_mutex_t timer_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void load_program(struct chip_8_internals* chip, char* program){
     FILE* fp = fopen(program, "r");
@@ -43,13 +60,14 @@ void load_program(struct chip_8_internals* chip, char* program){
     size_t program_sz = ftell(fp);
     rewind(fp);
 
-    fread(chip->memory+chip->PC, sizeof(byte_t), program_sz, fp);
+    fread(chip->memory+chip->PC, 1, program_sz, fp);
     fclose(fp);
 
     srand(time(NULL));
     init_display(chip);
     check_correct_display_size();
     init_input();
+    init_timers(chip);
     atexit(cleanup);
 }
 
@@ -58,6 +76,10 @@ void cleanup(){
 }
 
 int fetch_inst(struct chip_8_internals* chip){
+    static struct timeval prev_time;
+    while (diff_cur_time(&prev_time) < 1000.0/CHIP8_INSTRUCTIONS_PER_SEC);
+    gettimeofday(&prev_time, NULL);
+
     if(chip->PC >= CHIP8_RAM_SIZE)
         return 0;
     byte_t first_byte = chip->memory[chip->PC];
@@ -78,6 +100,9 @@ void decode_inst(struct chip_8_internals* chip){
 
 void execute_inst(struct chip_8_internals* chip){
     word_t temp_word;
+    mvprintw(0, 0, "Current instruction: %X%X%X%X",
+        ((inst & 0xF000) >> 12), ((inst & 0x0F00) >> 8), ((inst & 0x00F0) >> 4), (inst & 0x000F));
+
     switch(((inst & 0xF000) >> 12)){
         case 0x0:{
             if(inst == 0x00E0){
@@ -176,10 +201,25 @@ void execute_inst(struct chip_8_internals* chip){
         }
         case 0xF:{
             switch (inst & 0x00FF) {
-                case 0x07: chip->V[x] = chip->DT; break;
+                case 0x07:{
+                    pthread_mutex_lock(&timer_mutex);
+                    chip->V[x] = chip->DT;
+                    pthread_mutex_unlock(&timer_mutex);
+                    break;
+                }
                 case 0x0A: chip->V[x] = get_key(); break;
-                case 0x15: chip->DT = chip->V[x]; break;
-                case 0x18: chip->ST = chip->V[x]; break;
+                case 0x15:{
+                    pthread_mutex_lock(&timer_mutex);
+                    chip->DT = chip->V[x];
+                    pthread_mutex_unlock(&timer_mutex);
+                    break;
+                }
+                case 0x18:{
+                    pthread_mutex_lock(&timer_mutex);
+                    chip->ST = chip->V[x];
+                    pthread_mutex_unlock(&timer_mutex);
+                    break;
+                }
                 case 0x1E: chip->I += chip->V[x]; break;
                 case 0x29: chip->I = hex_char_addr(chip->V[x]); break;
                 case 0x33: bin_cod_dec_conv(chip, chip->V[x]); break;
@@ -236,4 +276,43 @@ static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx){
     chip->memory[chip->I + 1] = Vx % 10;
     Vx /= 10;
     chip->memory[chip->I] = Vx;
+}
+
+static void init_timers(struct chip_8_internals* chip){
+    pthread_t thr;
+    pthread_attr_t attr;
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, 1);
+
+    pthread_barrier_t barrier;
+    pthread_barrier_init(&barrier, NULL, 2);
+
+    struct chip8_timer_setup setup;
+    setup.DT = &chip->DT;
+    setup.ST = &chip->ST;
+    setup.setup_barrier = &barrier;
+
+    pthread_create(&thr, &attr, (void*)timer_thread, (void*)&setup);
+    pthread_barrier_wait(&barrier);
+
+    pthread_barrier_destroy(&barrier);
+    pthread_attr_destroy(&attr);
+}
+
+static void timer_thread(const struct chip8_timer_setup* t){
+    byte_t* ST = t->ST;
+    byte_t* DT = t->DT;
+    pthread_barrier_wait(t->setup_barrier);
+
+    while (1) {
+        usleep(1e6 / CHIP8_TIMER_DECREASE_PER_SEC);
+        pthread_mutex_lock(&timer_mutex);
+        if(*ST > 0){
+            if(--(*ST) == 0)
+                beep();
+        }
+        if(*DT > 0) (*DT)--;
+        pthread_mutex_unlock(&timer_mutex);
+    }
 }

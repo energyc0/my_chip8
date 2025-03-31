@@ -10,4 +10,7 @@
     exit(EXIT_FAILURE); \
 }while(0) \
 
+//return time difference in ms between t and current time
+long diff_cur_time(const struct timeval* t);
+
 #endif

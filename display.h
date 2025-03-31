@@ -8,13 +8,13 @@
 #define HEIGHT_TRUNC(y) ((y) & (CHIP8_DISPLAY_HEIGHT - 1))
 
 #define PIXEL '#'
+#define BORDER '@'
 
 void init_display(struct chip_8_internals* chip); //initialize ncurses
 void cleanup_display(); //cleanup ncurses
 
 //checks if terminal size is at least 64x32 and asks user to resize
-//return 1 on redraw
-int check_correct_display_size();
+void check_correct_display_size();
 
 void clear_display(); //CLS instruction
 

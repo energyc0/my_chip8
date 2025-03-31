@@ -1,7 +1,6 @@
 #include "input.h"
 #include "chip-8.h"
-#include <bits/pthreadtypes.h>
-#include <bits/types/struct_timeval.h>
+#include "utils.h"
 #include <ncurses.h>
 #include <pthread.h>
 #include <ctype.h>
@@ -19,9 +18,6 @@ static int ch = '\0';
 
 //function for input routine
 static void input_thread();
-
-//return time difference in ms
-static long diff_cur_time(const struct timeval* t);
 
 //convert char to chip-8 key or return -1(255)
 static byte_t char_to_scancode(int ch);
@@ -58,7 +54,7 @@ byte_t get_key(){
 }
 
 static void input_thread(){
-    while ((ch = getch()) != EOF) {
+    while ((ch = getchar()) != EOF) {
         pthread_cond_signal(&input_cond); //signal main thread if it is in get_key() function
 
         pthread_mutex_lock(&input_mutex);
@@ -69,12 +65,6 @@ static void input_thread(){
 
         pthread_mutex_unlock(&input_mutex);
     }
-}
-
-static long diff_cur_time(const struct timeval* t){
-    struct timeval cur_t;
-    gettimeofday(&cur_t, NULL);
-    return (cur_t.tv_sec - t->tv_sec) * 1e3 + ((cur_t.tv_usec - t->tv_usec) / 1e3);
 }
 
 static byte_t char_to_scancode(int ch){
