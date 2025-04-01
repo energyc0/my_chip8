@@ -109,7 +109,7 @@ void execute_inst(struct chip_8_internals* chip){
                 clear_display();
             }else if(inst == 0x00EE){
                 if(chip->SP == (byte_t)-1)
-                    eprintf("Dalboeb\n");//exit(EXIT_SUCCESS);
+                    exit(EXIT_SUCCESS);
                 chip->PC = chip->stack[chip->SP--];
             }
             break;
@@ -159,7 +159,7 @@ void execute_inst(struct chip_8_internals* chip){
                 }
                 case 0x6:{ //AMBIGUOUS
                     chip->V[0xF] = chip->V[x] & 0x01;
-                    chip->V[x] /= 2;
+                    chip->V[x] >>= 1;
                     break;
                 }
                 case 0x7:{
@@ -168,7 +168,7 @@ void execute_inst(struct chip_8_internals* chip){
                     break;
                 }
                 case 0xE:{ //AMBIGUOUS
-                    chip->V[0xF] = chip->V[x] & 0x80;
+                    chip->V[0xF] = ((chip->V[x] & 0x80) >> 7);
                     chip->V[x] <<= 1;
                     break;
                 }

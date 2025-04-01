@@ -37,8 +37,8 @@ byte_t draw_sprite(byte_t x, byte_t y, byte_t n){
 
         move(y+i + START_TERM_Y,x + START_TERM_X);
         for (byte_t bit = 0; bit < 8 && x + bit < CHIP8_DISPLAY_WIDTH; bit++) {
-            byte_t symb = ((1 << (7-bit)) & byte);
-            ret |= (pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] == 1 && symb == 1);
+            byte_t symb = ((1 << (7-bit)) & byte) > 0;
+            ret |= (pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] && symb);
 
             pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] ^= symb;
             addch(pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] ? PIXEL : ' ');
