@@ -54,7 +54,7 @@ byte_t get_key(){
 }
 
 static void input_thread(){
-    while ((ch = getchar()) != EOF) {
+    while ((ch = getch()) != EOF) {
         pthread_cond_signal(&input_cond); //signal main thread if it is in get_key() function
 
         pthread_mutex_lock(&input_mutex);

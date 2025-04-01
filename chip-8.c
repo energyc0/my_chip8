@@ -107,19 +107,18 @@ void execute_inst(struct chip_8_internals* chip){
         case 0x0:{
             if(inst == 0x00E0){
                 clear_display();
-
             }else if(inst == 0x00EE){
                 if(chip->SP == (byte_t)-1)
-                    exit(EXIT_SUCCESS);
+                    eprintf("Dalboeb\n");//exit(EXIT_SUCCESS);
                 chip->PC = chip->stack[chip->SP--];
             }
             break;
         }
         case 0x1: chip->PC = nnn; break;
         case 0x2: {
-            if(++chip->SP >= CHIP8_STACK_SIZE)
+            if(++(chip->SP) >= CHIP8_STACK_SIZE)
                 eprintf("CHIP8 stackoverflow\n");
-            chip->stack[chip->SP--] = chip->PC;
+            chip->stack[chip->SP] = chip->PC;
             chip->PC = nnn; break;
         }
         case 0x3:{
@@ -170,7 +169,7 @@ void execute_inst(struct chip_8_internals* chip){
                 }
                 case 0xE:{ //AMBIGUOUS
                     chip->V[0xF] = chip->V[x] & 0x80;
-                    chip->V[x] *= 2;
+                    chip->V[x] <<= 1;
                     break;
                 }
                 default: undefined_inst();
@@ -237,6 +236,7 @@ void execute_inst(struct chip_8_internals* chip){
                 }
                 default: undefined_inst();
             }
+            break;
         }
         default: undefined_inst();
     }

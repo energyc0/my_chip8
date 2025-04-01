@@ -14,8 +14,6 @@
 
 static struct chip_8_internals* pchip = NULL;
 
-//clear and draw chip-8 display #UNUSED
-//static void redraw_display(const byte_t display[CHIP8_DISPLAY_HEIGHT][CHIP8_DISPLAY_WIDTH]);
 static void draw_display_borders();
 static void resize_handler(int code);
 
@@ -34,14 +32,16 @@ void clear_display(){
 byte_t draw_sprite(byte_t x, byte_t y, byte_t n){
     byte_t ret = 0;
 
-    for(byte_t i = 0; i < n; i++){
+    for(byte_t i = 0; i < n && y + i < CHIP8_DISPLAY_HEIGHT; i++){
         byte_t byte = pchip->memory[pchip->I + i];
+
         move(y+i + START_TERM_Y,x + START_TERM_X);
-        for (byte_t bit = 7; bit != (byte_t)-1; bit--) {
-            byte_t symb = ((1 << bit) & byte);
-            ret = (ret == 1) || (pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x)] == 1 && symb == 1);
-            pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x)] ^= symb;
-            addch(symb ? PIXEL : ' ');
+        for (byte_t bit = 0; bit < 8 && x + bit < CHIP8_DISPLAY_WIDTH; bit++) {
+            byte_t symb = ((1 << (7-bit)) & byte);
+            ret |= (pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] == 1 && symb == 1);
+
+            pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] ^= symb;
+            addch(pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] ? PIXEL : ' ');
         }
     }
     move(LINES-1, COLS-1);
@@ -85,21 +85,6 @@ void check_correct_display_size(){
     }
 }
 
-/*
-static void redraw_display(const byte_t display[CHIP8_DISPLAY_HEIGHT][CHIP8_DISPLAY_WIDTH]){
-    char line[CHIP8_DISPLAY_WIDTH + 1];
-    line[CHIP8_DISPLAY_WIDTH] = '\0';
-
-    for(byte_t y = 0; y < CHIP8_DISPLAY_HEIGHT; y++){
-        for(byte_t x = 0; x < CHIP8_DISPLAY_WIDTH; x++){
-            line[x] = display[y][x] ? PIXEL : ' ';
-        }
-        mvaddstr(y, 0, line);
-    }
-
-    refresh();
-}
-*/
 static void resize_handler(int code){
     static WINDOW* saved_scr = NULL;
     static int lines = -1;

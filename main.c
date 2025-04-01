@@ -11,5 +11,6 @@ int main(int argc, char** argv){
         decode_inst(&chip8);
         execute_inst(&chip8);
     }
+    cleanup();
     return 0;
 }
