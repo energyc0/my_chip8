@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <unistd.h>
+
 //CHIP-8 screen upper-left corner coordinates in the terminal
 #define START_TERM_X 2
 #define START_TERM_Y 4
@@ -35,7 +36,7 @@ byte_t draw_sprite(byte_t x, byte_t y, byte_t n){
     for(byte_t i = 0; i < n && y + i < CHIP8_DISPLAY_HEIGHT; i++){
         byte_t byte = pchip->memory[pchip->I + i];
 
-        move(y+i + START_TERM_Y,x + START_TERM_X);
+        move(START_TERM_Y + y+i,START_TERM_X + x);
         for (byte_t bit = 0; bit < 8 && x + bit < CHIP8_DISPLAY_WIDTH; bit++) {
             byte_t symb = ((1 << (7-bit)) & byte) > 0;
             ret |= (pchip->display[HEIGHT_TRUNC(y+i)][WIDTH_TRUNC(x+bit)] && symb);
@@ -95,7 +96,6 @@ static void resize_handler(int code){
         copywin(stdscr, saved_scr, 0, 0, 0, 0, LINES-1, COLS-1, 0);
     }
     endwin();
-    //initscr();
     
     check_correct_display_size();
     lines = lines > LINES ? LINES : lines;

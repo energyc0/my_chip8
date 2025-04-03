@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 //current instruction
 static word_t inst; 
@@ -45,6 +46,13 @@ static void timer_thread(const struct chip8_timer_setup* t);
 static pthread_mutex_t timer_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 void load_program(struct chip_8_internals* chip, char* program){
+    struct stat fileinfo;
+    if(stat(program, &fileinfo) == -1)
+        eprintf("Failed to get info of %s: %s\n", program, strerror(errno));
+
+    if(!S_ISREG(fileinfo.st_mode))
+        eprintf("%s is not a regular file\n", program);
+
     FILE* fp = fopen(program, "r");
     if(fp == NULL)
         eprintf("Failed to open the file %s: %s\n", program, strerror(errno));    
@@ -60,6 +68,10 @@ void load_program(struct chip_8_internals* chip, char* program){
     size_t program_sz = ftell(fp);
     rewind(fp);
 
+    if(program_sz > CHIP8_RAM_SIZE - chip->PC){
+        fclose(fp);
+        eprintf("CHIP-8 memory limit exceeded, too big file\n");
+    }
     fread(chip->memory+chip->PC, 1, program_sz, fp);
     fclose(fp);
 
@@ -261,11 +273,14 @@ static void init_font(byte_t* memory){
         0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
-    memcpy(memory, font_digits, sizeof(font_digits));
+    //memcpy(memory, font_digits, sizeof(font_digits));
+    for(int i = 0; i < 80; i++){
+        memory[i] = font_digits[i];
+    }
 }
 
 static byte_t hex_char_addr(byte_t Vx){
-    return (Vx & 0x0F) * 5;
+    return Vx * 0x5;
 }
 
 static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx){

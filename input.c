@@ -44,17 +44,17 @@ byte_t get_key(){
     byte_t scancode = 0xFF;
     pthread_mutex_lock(&input_mutex);
 
-    while (scancode != 0xFF){
+    while (scancode == 0xFF){
         pthread_cond_wait(&input_cond, &input_mutex); //wait input from input_thread()
-        byte_t scancode = char_to_scancode(ch);
+        scancode = char_to_scancode(ch);
     }
-
+    //gettimeofday(&keyboard[scancode], NULL);
     pthread_mutex_unlock(&input_mutex);
     return scancode;
 }
 
 static void input_thread(){
-    while ((ch = getch()) != EOF) {
+    while ((ch = getchar()) != EOF) {
         pthread_cond_signal(&input_cond); //signal main thread if it is in get_key() function
 
         pthread_mutex_lock(&input_mutex);
