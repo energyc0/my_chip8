@@ -170,7 +170,7 @@ void execute_inst(struct chip_8_internals* chip){
                     break;
                 }
                 case 0x6:{ //AMBIGUOUS
-                    chip->V[0xF] = chip->V[x] & 0x01;
+                    chip->V[0xF] = chip->V[x] & 0x1;
                     chip->V[x] >>= 1;
                     break;
                 }
@@ -243,7 +243,7 @@ void execute_inst(struct chip_8_internals* chip){
                 case 0x65:{ //AMBIGUOUS
                     if(chip->I + x >= CHIP8_RAM_SIZE)
                         eprintf("access CHIP-8 memory out of range\n");
-                    memcpy(chip->V, chip->memory, x+1);
+                    memcpy(chip->V, chip->memory + chip->I, x+1);
                     break;
                 }
                 default: undefined_inst();
@@ -273,14 +273,11 @@ static void init_font(byte_t* memory){
         0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
-    //memcpy(memory, font_digits, sizeof(font_digits));
-    for(int i = 0; i < 80; i++){
-        memory[i] = font_digits[i];
-    }
+    memcpy(memory, font_digits, sizeof(font_digits));
 }
 
 static byte_t hex_char_addr(byte_t Vx){
-    return Vx * 0x5;
+    return ((Vx & 0xF)) * 0x5;
 }
 
 static void bin_cod_dec_conv(struct chip_8_internals* chip, byte_t Vx){

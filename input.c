@@ -48,7 +48,7 @@ byte_t get_key(){
         pthread_cond_wait(&input_cond, &input_mutex); //wait input from input_thread()
         scancode = char_to_scancode(ch);
     }
-    //gettimeofday(&keyboard[scancode], NULL);
+    gettimeofday(&keyboard[scancode], NULL);
     pthread_mutex_unlock(&input_mutex);
     return scancode;
 }
